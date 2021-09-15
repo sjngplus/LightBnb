@@ -1,4 +1,4 @@
-SELECT * FROM users;
-SELECT * FROM properties;
+-- SELECT * FROM users;
+-- SELECT * FROM properties;
 SELECT * FROM reservations;
-SELECT * FROM property_reviews;
+-- SELECT * FROM property_reviews;
