@@ -145,27 +145,71 @@ exports.getAllReservations = getAllReservations;
  * @param {*} limit The number of results to return.
  * @return {Promise<[{}]>}  A promise to the properties.
  */
- const getAllProperties = (options, limit = 10) => {
+const getAllProperties = (options, limit = 10) => {  
+  
+  let queryParams = [limit];
+  let queryHaving = "";
 
-  // const limitedProperties = {};
-  // for (let i = 1; i <= limit; i++) {
-  //   limitedProperties[i] = properties[i];
-  // }
-  // return Promise.resolve(limitedProperties);
-
-  return pool.query(`
+  let queryString = `
   SELECT properties.*, AVG(property_reviews.rating) AS average_rating
   FROM properties
-  JOIN property_reviews ON property_reviews.property_id = properties.id
-  GROUP BY properties.id
-  LIMIT $1
-  `, [limit])
-    .then((result) => {      
-      return result.rows;
-    })
-    .catch((err) => {
-      console.log("##-->Query Error:", err.message);
-    });
+  JOIN property_reviews ON property_reviews.property_id = properties.id`;
+  
+  if (options.owner_id) {
+    queryParams.push(options.owner_id);
+    queryString += `
+    WHERE properties.owner_id = $${queryParams.length}`
+  }
+  
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString += `
+    WHERE properties.city ILIKE $${queryParams.length}`
+  };
+  
+  if (options.minimum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night * 100);
+    queryString += `
+    AND properties.cost_per_night > $${queryParams.length}`
+  }
+  
+  if (options.maximum_price_per_night) {
+    queryParams.push(options.maximum_price_per_night * 100);
+    queryString += `
+    AND properties.cost_per_night < $${queryParams.length}`
+  };
+  
+
+  if (options.minimum_rating) {
+    queryParams.push(options.minimum_rating);
+    queryHaving = `
+    HAVING AVG(property_reviews.rating) > $${queryParams.length}`
+  };
+
+  
+  //Test console.logs
+  console.log(options);
+  console.log(queryParams);  
+  console.log(`
+    ${queryString}
+    GROUP BY properties.id
+    ${queryHaving}
+    LIMIT $1
+  `);
+
+  return pool.query(`
+    ${queryString}
+    GROUP BY properties.id
+    ${queryHaving}
+    LIMIT $1
+    `, queryParams
+  )
+  .then((result) => {      
+    return result.rows;
+  })
+  .catch((err) => {
+    console.log("##-->Query Error:", err.message);
+  });
 };
 
 exports.getAllProperties = getAllProperties;
@@ -177,9 +221,11 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function(property) {
+
   const propertyId = Object.keys(properties).length + 1;
   property.id = propertyId;
   properties[propertyId] = property;
   return Promise.resolve(property);
+  
 }
 exports.addProperty = addProperty;
